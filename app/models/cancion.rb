@@ -1,2 +1,0 @@
-class Cancion < ApplicationRecord
-end

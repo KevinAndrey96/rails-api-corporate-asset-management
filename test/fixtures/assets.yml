@@ -1,0 +1,52 @@
+laptop:
+  tag: LAP-0001
+  category: laptop
+  status: assigned
+  brand: Lenovo
+  model: ThinkPad T14 Gen 5
+  serial_number: PF4XK21A
+  purchased_on: <%= Date.current - 400 %>
+  purchase_cost: 5890000
+
+spare:
+  tag: LAP-0002
+  category: laptop
+  status: available
+  brand: Dell
+  model: Latitude 5450
+  serial_number: 7HQ2M93
+  purchased_on: <%= Date.current - 220 %>
+  purchase_cost: 5250000
+
+monitor:
+  tag: MON-0001
+  category: monitor
+  status: maintenance
+  brand: LG
+  model: 27UP850
+  purchased_on: <%= Date.current - 300 %>
+  purchase_cost: 1850000
+
+van:
+  tag: VEH-0001
+  category: vehicle
+  status: available
+  brand: Renault
+  model: Kangoo Zen 2023
+  plate: JKL482
+  purchased_on: <%= Date.current - 700 %>
+  purchase_cost: 92000000
+  soat_expires_on: <%= Date.current + 12 %>
+  technical_review_expires_on: <%= Date.current + 180 %>
+
+truck:
+  tag: VEH-0002
+  category: vehicle
+  status: available
+  brand: Chevrolet
+  model: NHR Reward 2021
+  plate: TSM905
+  purchased_on: <%= Date.current - 1500 %>
+  purchase_cost: 135000000
+  soat_expires_on: <%= Date.current + 200 %>
+  technical_review_expires_on: <%= Date.current - 6 %>

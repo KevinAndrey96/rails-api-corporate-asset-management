@@ -1,0 +1,109 @@
+es:
+  activerecord:
+    models:
+      api_client:
+        one: Cliente de la API
+        other: Clientes de la API
+      employee:
+        one: Colaborador
+        other: Colaboradores
+      asset:
+        one: Activo
+        other: Activos
+      assignment:
+        one: Asignación
+        other: Asignaciones
+    attributes:
+      api_client:
+        name: Nombre
+        access: Acceso
+        token_digest: Token
+      employee:
+        document_number: Número de documento
+        full_name: Nombre completo
+        email: Correo
+        department: Área
+        active: Activo
+        assignments: Asignaciones
+      asset:
+        tag: Placa de inventario
+        category: Categoría
+        category/laptop: Portátil
+        category/desktop: Equipo de escritorio
+        category/monitor: Monitor
+        category/phone: Celular
+        category/vehicle: Vehículo
+        status: Estado
+        status/available: disponible
+        status/assigned: asignado
+        status/maintenance: en mantenimiento
+        status/retired: dado de baja
+        brand: Marca
+        model: Modelo
+        serial_number: Número de serie
+        purchased_on: Fecha de compra
+        purchase_cost: Costo de compra
+        plate: Placa del vehículo
+        soat_expires_on: Vencimiento del SOAT
+        technical_review_expires_on: Vencimiento de la revisión técnico-mecánica
+        assignments: Asignaciones
+      assignment:
+        asset: Activo
+        asset_id: Activo
+        employee: Colaborador
+        assigned_on: Fecha de entrega
+        due_on: Fecha de devolución pactada
+        returned_on: Fecha de devolución
+        notes: Observaciones
+    errors:
+      models:
+        employee:
+          attributes:
+            active:
+              has_open_assignments: no puede desactivarse mientras tenga activos asignados
+        asset:
+          attributes:
+            status:
+              assigned_without_assignment: solo cambia a asignado al entregar el activo a un colaborador
+              has_open_assignment: no puede cambiar mientras el activo esté asignado; registra primero la devolución
+        assignment:
+          attributes:
+            asset_id:
+              taken: ya tiene una asignación abierta
+            due_on:
+              before_assigned_on: no puede ser anterior a la fecha de entrega
+            returned_on:
+              before_assigned_on: no puede ser anterior a la fecha de entrega
+
+  conflicts:
+    asset_not_available: El activo no está disponible para asignar (estado actual %{status}).
+    employee_inactive: El colaborador está inactivo y no puede recibir activos.
+    already_returned: La asignación ya fue cerrada el %{returned_on}.
+
+  problems:
+    bad_request:
+      title: Solicitud inválida
+    unauthorized:
+      title: No autenticado
+      detail: Envía un token válido en la cabecera Authorization con el esquema Bearer.
+    forbidden:
+      title: Acceso denegado
+      detail: El token tiene acceso de solo lectura.
+    not_found:
+      title: Recurso no encontrado
+    conflict:
+      title: Conflicto con el estado actual
+    unprocessable_content:
+      title: Datos inválidos
+    too_many_requests:
+      title: Demasiadas solicitudes
+
+  alerts:
+    expired:
+      soat: "El SOAT del vehículo %{tag} venció el %{date} (hace %{days} días)."
+      technical_review: "La revisión técnico-mecánica del vehículo %{tag} venció el %{date} (hace %{days} días)."
+    expiring:
+      soat: "El SOAT del vehículo %{tag} vence el %{date} (en %{days} días)."
+      technical_review: "La revisión técnico-mecánica del vehículo %{tag} vence el %{date} (en %{days} días)."
+    overdue:
+      overdue_return: "El activo %{tag} debía devolverse el %{date} (%{days} días de retraso)."

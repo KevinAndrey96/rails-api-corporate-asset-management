@@ -1,0 +1,12 @@
+laura_laptop:
+  asset: laptop
+  employee: laura
+  assigned_on: <%= Date.current - 100 %>
+  due_on: <%= Date.current - 5 %>
+
+andres_spare:
+  asset: spare
+  employee: andres
+  assigned_on: <%= Date.current - 60 %>
+  due_on: <%= Date.current - 30 %>
+  returned_on: <%= Date.current - 31 %>

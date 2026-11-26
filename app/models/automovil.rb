@@ -1,2 +1,0 @@
-class Automovil < ApplicationRecord
-end

@@ -1,0 +1,15 @@
+editor:
+  name: erp
+  access: editor
+  token_digest: <%= ApiClient.digest("editor-token-0123456789abcdefghijklmnop") %>
+
+reader:
+  name: dashboard
+  access: reader
+  token_digest: <%= ApiClient.digest("reader-token-0123456789abcdefghijklmnop") %>
+
+revoked:
+  name: old-integration
+  access: editor
+  token_digest: <%= ApiClient.digest("revoked-token-0123456789abcdefghijklmno") %>
+  revoked_at: <%= 2.days.ago.to_fs(:db) %>
