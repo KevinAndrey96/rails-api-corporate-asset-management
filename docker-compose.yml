@@ -1,0 +1,17 @@
+services:
+  api:
+    build: .
+    image: rails-asset-management-api
+    ports:
+      - "${APP_PORT:-3000}:80"
+    environment:
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?set SECRET_KEY_BASE in .env, see .env.example}
+      RAILS_FORCE_SSL: ${RAILS_FORCE_SSL:-false}
+      BOOTSTRAP_API_TOKEN: ${BOOTSTRAP_API_TOKEN:-}
+      LOAD_DEMO_DATA: ${LOAD_DEMO_DATA:-true}
+    volumes:
+      - storage:/rails/storage
+    restart: unless-stopped
+
+volumes:
+  storage:

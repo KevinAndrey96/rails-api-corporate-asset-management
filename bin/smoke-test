@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Probes a running instance: health check, token guard, demo dataset, checkout conflict, alerts, OpenAPI and headers.
+set -euo pipefail
+
+base_url="${1:-http://localhost:3000}"
+token="${2:?usage: bin/smoke-test URL TOKEN}"
+auth=(-H "Authorization: Bearer $token" -H "Accept: application/json")
+
+for _ in $(seq 1 30); do
+  curl -fsS "$base_url/up" >/dev/null 2>&1 && break
+  sleep 2
+done
+
+curl -fsS "$base_url/up" >/dev/null
+echo "ok: /up"
+
+status=$(curl -s -o /dev/null -w "%{http_code}" "$base_url/api/v1/assets")
+[ "$status" = "401" ] || { echo "expected 401 without token, got $status"; exit 1; }
+curl -sI "$base_url/api/v1/assets" | grep -qi "^www-authenticate: Bearer" || { echo "missing WWW-Authenticate header"; exit 1; }
+echo "ok: requests without a token are rejected"
+
+assets=$(curl -fsS "${auth[@]}" "$base_url/api/v1/assets?per_page=2")
+grep -q '"total_count":8' <<<"$assets" || { echo "expected the 8 demo assets, got: $assets"; exit 1; }
+curl -fsSI "${auth[@]}" "$base_url/api/v1/assets?per_page=2" | grep -qi '^link: .*rel="next"' || { echo "missing pagination Link header"; exit 1; }
+echo "ok: demo dataset with pagination links"
+
+laptop_id=$(curl -fsS "${auth[@]}" "$base_url/api/v1/assets?q=LAP-0001" | sed -E 's/.*"data":\[\{"id":([0-9]+).*/\1/')
+employee_id=$(curl -fsS "${auth[@]}" "$base_url/api/v1/employees?active=true&per_page=1" | sed -E 's/.*"data":\[\{"id":([0-9]+).*/\1/')
+conflict=$(curl -s -w "\n%{http_code}" "${auth[@]}" -H "Content-Type: application/json" \
+  -d "{\"assignment\":{\"asset_id\":$laptop_id,\"employee_id\":$employee_id}}" "$base_url/api/v1/assignments")
+[ "$(tail -1 <<<"$conflict")" = "409" ] || { echo "expected 409 when lending an assigned asset, got: $conflict"; exit 1; }
+grep -q '"title":"Conflicto con el estado actual"' <<<"$conflict" || { echo "expected a problem+json body, got: $conflict"; exit 1; }
+echo "ok: lending an assigned asset answers 409 problem+json"
+
+alerts=$(curl -fsS "${auth[@]}" "$base_url/api/v1/alerts")
+for kind in soat technical_review overdue_return; do
+  grep -q "\"kind\":\"$kind\"" <<<"$alerts" || { echo "missing $kind alert, got: $alerts"; exit 1; }
+done
+echo "ok: compliance alerts for SOAT, technical review and overdue returns"
+
+curl -fsS "$base_url/openapi.yaml" | grep -q "^openapi: 3.1"
+echo "ok: openapi document is published"
+
+headers=$(curl -sI "$base_url/up")
+grep -qi "^x-content-type-options: nosniff" <<<"$headers" || { echo "missing nosniff header"; exit 1; }
+echo "ok: security headers present"
