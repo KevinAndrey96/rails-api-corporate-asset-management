@@ -1,0 +1,383 @@
+openapi: 3.1.0
+info:
+  title: API de gestión de activos corporativos
+  version: 1.0.0
+  description: |
+    Inventario de activos de una empresa (portátiles, equipos, monitores, celulares y vehículos), sus colaboradores
+    y el ciclo de préstamo y devolución. Incluye alertas de vencimiento del SOAT y de la revisión técnico-mecánica
+    y de devoluciones atrasadas. Todos los errores siguen RFC 9457 (`application/problem+json`).
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: http://localhost:3000
+security:
+  - bearerAuth: []
+tags:
+  - name: Colaboradores
+  - name: Activos
+  - name: Asignaciones
+  - name: Alertas
+
+paths:
+  /api/v1/employees:
+    get:
+      tags: [Colaboradores]
+      summary: Lista colaboradores
+      parameters:
+        - { name: department, in: query, schema: { type: string } }
+        - { name: active, in: query, schema: { type: boolean } }
+        - { name: document_number, in: query, description: Búsqueda exacta por número de documento, schema: { type: string } }
+        - { name: q, in: query, description: Texto en nombre o correo, schema: { type: string } }
+        - { name: sort, in: query, schema: { type: string, enum: [full_name, -full_name, department, -department, created_at, -created_at] } }
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/per_page"
+      responses:
+        "200": { $ref: "#/components/responses/EmployeePage" }
+        "401": { $ref: "#/components/responses/Problem" }
+    post:
+      tags: [Colaboradores]
+      summary: Registra un colaborador (acceso editor)
+      requestBody: { $ref: "#/components/requestBodies/Employee" }
+      responses:
+        "201": { $ref: "#/components/responses/Employee" }
+        "403": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /api/v1/employees/{id}:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [Colaboradores]
+      summary: Detalle de un colaborador con sus activos asignados
+      responses:
+        "200": { $ref: "#/components/responses/Employee" }
+        "404": { $ref: "#/components/responses/Problem" }
+    patch:
+      tags: [Colaboradores]
+      summary: Actualiza un colaborador (acceso editor)
+      requestBody: { $ref: "#/components/requestBodies/Employee" }
+      responses:
+        "200": { $ref: "#/components/responses/Employee" }
+        "422": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [Colaboradores]
+      summary: Elimina un colaborador sin historial de asignaciones (acceso editor)
+      responses:
+        "204": { description: Eliminado }
+        "409": { $ref: "#/components/responses/Problem" }
+
+  /api/v1/assets:
+    get:
+      tags: [Activos]
+      summary: Lista activos
+      parameters:
+        - { name: category, in: query, schema: { $ref: "#/components/schemas/Category" } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/Status" } }
+        - { name: q, in: query, description: Texto en placa de inventario, marca, modelo, serie o placa del vehículo, schema: { type: string } }
+        - { name: sort, in: query, schema: { type: string, enum: [tag, -tag, purchased_on, -purchased_on, purchase_cost, -purchase_cost] } }
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/per_page"
+      responses:
+        "200": { $ref: "#/components/responses/AssetPage" }
+    post:
+      tags: [Activos]
+      summary: Registra un activo (acceso editor)
+      requestBody: { $ref: "#/components/requestBodies/Asset" }
+      responses:
+        "201": { $ref: "#/components/responses/Asset" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /api/v1/assets/{id}:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [Activos]
+      summary: Detalle de un activo con su historial de asignaciones
+      responses:
+        "200": { $ref: "#/components/responses/Asset" }
+        "404": { $ref: "#/components/responses/Problem" }
+    patch:
+      tags: [Activos]
+      summary: Actualiza un activo o lo envía a mantenimiento o baja (acceso editor)
+      requestBody: { $ref: "#/components/requestBodies/Asset" }
+      responses:
+        "200": { $ref: "#/components/responses/Asset" }
+        "422": { $ref: "#/components/responses/Problem" }
+    delete:
+      tags: [Activos]
+      summary: Elimina un activo sin historial (acceso editor)
+      responses:
+        "204": { description: Eliminado }
+        "409": { $ref: "#/components/responses/Problem" }
+
+  /api/v1/assignments:
+    get:
+      tags: [Asignaciones]
+      summary: Lista asignaciones
+      parameters:
+        - { name: state, in: query, schema: { type: string, enum: [open, returned, overdue] } }
+        - { name: asset_id, in: query, schema: { type: integer } }
+        - { name: employee_id, in: query, schema: { type: integer } }
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/per_page"
+      responses:
+        "200": { $ref: "#/components/responses/AssignmentPage" }
+    post:
+      tags: [Asignaciones]
+      summary: Entrega un activo disponible a un colaborador activo (acceso editor)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignment]
+              properties:
+                assignment:
+                  type: object
+                  required: [asset_id, employee_id]
+                  properties:
+                    asset_id: { type: integer }
+                    employee_id: { type: integer }
+                    assigned_on: { type: string, format: date, description: Por defecto hoy }
+                    due_on: { type: string, format: date }
+                    notes: { type: string, maxLength: 500 }
+      responses:
+        "201": { $ref: "#/components/responses/Assignment" }
+        "409": { $ref: "#/components/responses/Problem" }
+        "422": { $ref: "#/components/responses/Problem" }
+  /api/v1/assignments/{id}:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    get:
+      tags: [Asignaciones]
+      summary: Detalle de una asignación
+      responses:
+        "200": { $ref: "#/components/responses/Assignment" }
+  /api/v1/assignments/{id}/return:
+    parameters: [{ $ref: "#/components/parameters/id" }]
+    patch:
+      tags: [Asignaciones]
+      summary: Registra la devolución del activo (acceso editor)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assignment:
+                  type: object
+                  properties:
+                    returned_on: { type: string, format: date, description: Por defecto hoy }
+                    needs_maintenance: { type: boolean, description: Deja el activo en mantenimiento en lugar de disponible }
+                    notes: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/Assignment" }
+        "409": { $ref: "#/components/responses/Problem" }
+
+  /api/v1/alerts:
+    get:
+      tags: [Alertas]
+      summary: SOAT y revisión técnico-mecánica vencidos o por vencer, y devoluciones atrasadas
+      parameters:
+        - { name: within_days, in: query, schema: { type: integer, minimum: 0, maximum: 365, default: 30 } }
+      responses:
+        "200":
+          description: Alertas ordenadas por urgencia
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Alert" } }
+                  meta:
+                    type: object
+                    properties:
+                      today: { type: string, format: date }
+                      within_days: { type: integer }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Token emitido con `bin/rails "api_clients:issue[nombre,editor]"`. Los tokens `reader` solo pueden leer.
+
+  parameters:
+    id: { name: id, in: path, required: true, schema: { type: integer } }
+    page: { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+    per_page: { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+
+  schemas:
+    Category: { type: string, enum: [laptop, desktop, monitor, phone, vehicle] }
+    Status: { type: string, enum: [available, assigned, maintenance, retired] }
+    Meta:
+      type: object
+      properties:
+        page: { type: integer }
+        per_page: { type: integer }
+        total_count: { type: integer }
+        total_pages: { type: integer }
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, example: about:blank }
+        title: { type: string, example: Datos inválidos }
+        status: { type: integer, example: 422 }
+        detail: { type: string }
+        errors:
+          type: object
+          additionalProperties: { type: array, items: { type: string } }
+    EmployeeSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        full_name: { type: string }
+        department: { type: string }
+    Employee:
+      type: object
+      properties:
+        id: { type: integer }
+        document_number: { type: string, description: Enmascarado (Ley 1581 de 2012), example: "****4050" }
+        full_name: { type: string }
+        email: { type: string, format: email }
+        department: { type: string }
+        active: { type: boolean }
+        assigned_assets: { type: array, items: { $ref: "#/components/schemas/AssetSummary" } }
+    EmployeeInput:
+      type: object
+      properties:
+        document_number: { type: string, pattern: "^[0-9.\\s]{6,13}$" }
+        full_name: { type: string, maxLength: 120 }
+        email: { type: string, format: email }
+        department: { type: string, maxLength: 80 }
+        active: { type: boolean }
+    AssetSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        tag: { type: string, example: LAP-0001 }
+        category: { $ref: "#/components/schemas/Category" }
+        brand: { type: string }
+        model: { type: string }
+    Asset:
+      type: object
+      properties:
+        id: { type: integer }
+        tag: { type: string, example: LAP-0001 }
+        category: { $ref: "#/components/schemas/Category" }
+        status: { $ref: "#/components/schemas/Status" }
+        brand: { type: string }
+        model: { type: string }
+        serial_number: { type: [string, "null"] }
+        purchased_on: { type: string, format: date }
+        purchase_cost: { type: integer, description: Pesos colombianos }
+        holder: { oneOf: [{ $ref: "#/components/schemas/EmployeeSummary" }, { type: "null" }] }
+        vehicle:
+          type: object
+          properties:
+            plate: { type: string, example: JKL482 }
+            soat_expires_on: { type: string, format: date }
+            technical_review_expires_on: { type: string, format: date }
+        assignments: { type: array, items: { $ref: "#/components/schemas/Assignment" } }
+    AssetInput:
+      type: object
+      properties:
+        tag: { type: string, pattern: "^[A-Z]{2,4}-[0-9]{3,6}$" }
+        category: { $ref: "#/components/schemas/Category" }
+        status: { type: string, enum: [available, maintenance, retired] }
+        brand: { type: string }
+        model: { type: string }
+        serial_number: { type: string }
+        purchased_on: { type: string, format: date }
+        purchase_cost: { type: integer, minimum: 1 }
+        plate: { type: string, description: Obligatoria para vehículos (ABC123 o ABC12D) }
+        soat_expires_on: { type: string, format: date, description: Obligatoria para vehículos }
+        technical_review_expires_on: { type: string, format: date, description: Obligatoria para vehículos }
+    Assignment:
+      type: object
+      properties:
+        id: { type: integer }
+        asset: { $ref: "#/components/schemas/AssetSummary" }
+        employee: { $ref: "#/components/schemas/EmployeeSummary" }
+        assigned_on: { type: string, format: date }
+        due_on: { type: [string, "null"], format: date }
+        returned_on: { type: [string, "null"], format: date }
+        overdue: { type: boolean }
+        notes: { type: [string, "null"] }
+    Alert:
+      type: object
+      properties:
+        kind: { type: string, enum: [soat, technical_review, overdue_return] }
+        severity: { type: string, enum: [expired, expiring, overdue] }
+        message: { type: string }
+        due_on: { type: string, format: date }
+        days_left: { type: integer, description: Negativo cuando ya venció }
+        asset: { $ref: "#/components/schemas/AssetSummary" }
+        employee: { $ref: "#/components/schemas/EmployeeSummary" }
+
+  requestBodies:
+    Employee:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [employee]
+            properties:
+              employee: { $ref: "#/components/schemas/EmployeeInput" }
+    Asset:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [asset]
+            properties:
+              asset: { $ref: "#/components/schemas/AssetInput" }
+
+  responses:
+    Problem:
+      description: Error RFC 9457
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Employee:
+      description: Colaborador
+      content:
+        application/json:
+          schema: { type: object, properties: { data: { $ref: "#/components/schemas/Employee" } } }
+    EmployeePage:
+      description: Página de colaboradores; la cabecera Link trae first, prev, next y last
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { type: array, items: { $ref: "#/components/schemas/Employee" } }
+              meta: { $ref: "#/components/schemas/Meta" }
+    Asset:
+      description: Activo
+      content:
+        application/json:
+          schema: { type: object, properties: { data: { $ref: "#/components/schemas/Asset" } } }
+    AssetPage:
+      description: Página de activos; la cabecera Link trae first, prev, next y last
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { type: array, items: { $ref: "#/components/schemas/Asset" } }
+              meta: { $ref: "#/components/schemas/Meta" }
+    Assignment:
+      description: Asignación
+      content:
+        application/json:
+          schema: { type: object, properties: { data: { $ref: "#/components/schemas/Assignment" } } }
+    AssignmentPage:
+      description: Página de asignaciones; la cabecera Link trae first, prev, next y last
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { type: array, items: { $ref: "#/components/schemas/Assignment" } }
+              meta: { $ref: "#/components/schemas/Meta" }

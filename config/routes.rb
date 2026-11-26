@@ -1,11 +1,14 @@
 Rails.application.routes.draw do
-  resources :viviendas
-  resources :computadors
-  resources :automovils
-  resources :eventos
-  resources :cancions
-  resources :mascota
-  resources :empleados
-  resources :productos
-  # For details on the DSL available within this file, see http://guides.rubyonrails.org/routing.html
+  namespace :api do
+    namespace :v1, defaults: { format: :json } do
+      resources :employees
+      resources :assets
+      resources :assignments, only: %i[index show create] do
+        patch :return, on: :member, action: :check_in
+      end
+      resources :alerts, only: :index
+    end
+  end
+
+  get "up" => "rails/health#show", as: :rails_health_check
 end
